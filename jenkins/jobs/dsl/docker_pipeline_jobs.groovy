@@ -120,7 +120,7 @@ staticCodeAnalysis.with{
     }
     shell('''set -x
             |echo Mount the Dockerfile into a container that will run Docker Lint https://github.com/projectatomic/dockerfile_lint
-            |docker run --rm -v jenkins_slave_home:/jenkins_slave_home/ redcoolbeans/dockerlint dockerlint -f /jenkins_slave_home/$JOB_NAME/Static_Code_Analysis/Dockerfile
+            |docker run --rm -v jenkins_slave_home:/jenkins_slave_home/ --entrypoint="dockerlint" redcoolbeans/dockerlint -f /jenkins_slave_home/$JOB_NAME/Dockerfile
             |'''.stripMargin())
   }
   publishers{
@@ -142,7 +142,7 @@ build.with{
   description("This job build the Docker image")
   parameters{
     stringParam("B",'',"Parent build number")
-    stringParam("PARENT_BUILD","Static_Code_Analysis","Parent build name")
+    stringParam("PARENT_BUILD","Get_Dockerfile","Parent build name")
   }
   environmentVariables {
       env('WORKSPACE_NAME',workspaceFolderName)
@@ -163,8 +163,7 @@ build.with{
     }
     shell('''set -x
             |docker build -t '''.stripMargin() + 
-	     referenceAppGitRepo + 
-             '''|'''.stripMargin())
+	     referenceAppGitRepo + ''' .'''.stripMargin())
   }
   publishers{
     downstreamParameterized{
