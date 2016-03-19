@@ -21,7 +21,7 @@ def integrationTestImage = freeStyleJob(projectFolderName + "/Integration_Test_I
 def tagAndRelease = freeStyleJob(projectFolderName + "/Tag_and_Release")
 
 // Views
-def pipelineView = buildPipelineView(projectFolderName + "/Chef_Pipeline")
+def pipelineView = buildPipelineView(projectFolderName + "/Example_Docker_Pipeline")
 
 pipelineView.with{
     title('Example Docker Pipeline')
@@ -223,7 +223,7 @@ vunerabilityScan.with{
 }
 
 imageTest.with{
-  description("This job uploads the cookbook to the non-production Chef Server")
+  description("This job TODO")
   parameters{
     stringParam("B",'',"Parent build number")
     stringParam("PARENT_BUILD","Get_Dockerfile","Parent build name")
