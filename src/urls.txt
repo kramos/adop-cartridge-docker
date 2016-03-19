@@ -1,0 +1,2 @@
+https://github.com/Accenture/adop-jenkins.git
+https://github.com/Accenture/adop-docker-compose.git
