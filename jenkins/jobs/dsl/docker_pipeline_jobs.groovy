@@ -129,7 +129,7 @@ staticCodeAnalysis.with{
       trigger(projectFolderName + "/Build"){
         condition("UNSTABLE_OR_BETTER")
         parameters{
-          predefinedProp("B",'${BUILD_NUMBER}')
+          predefinedProp("B",'${B}')
           predefinedProp("PARENT_BUILD", '${JOB_NAME}')
         }
       }
