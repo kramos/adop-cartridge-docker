@@ -12,7 +12,7 @@ def dockerUtilsGitUrl = "ssh://jenkins@gerrit:29418/${PROJECT_NAME}/" + dockerUt
 def getDockerfile = freeStyleJob(projectFolderName + "/Get_Dockerfile")
 def staticCodeAnalysis = freeStyleJob(projectFolderName + "/Static_Code_Analysis")
 def build = freeStyleJob(projectFolderName + "/Build")
-def vunerabilityScan = freeStyleJob(projectFolderName + "/Vulnerability_Scan")
+def vulnerabilityScan = freeStyleJob(projectFolderName + "/Vulnerability_Scan")
 def imageTest = freeStyleJob(projectFolderName + "/Image_Test")
 def containerTest = freeStyleJob(projectFolderName + "/Container_Test")
 def publish = freeStyleJob(projectFolderName + "/Publish")
@@ -78,7 +78,7 @@ getDockerfile.with{
   label("docker")
   steps {
     shell('''set -xe
-            |echo Pull the Dockerfile out of Git ready for us to test and if successful release via the pipeline
+            |echo "Pull the Dockerfile out of Git ready for us to test and if successful release via the pipeline"
             |'''.stripMargin())
   }
   publishers{
@@ -119,7 +119,7 @@ staticCodeAnalysis.with{
       }
     }
     shell('''set -x
-            |echo Mount the Dockerfile into a container that will run Docker Lint https://github.com/projectatomic/dockerfile_lint
+            |echo "Mount the Dockerfile into a container that will run Docker Lint https://github.com/projectatomic/dockerfile_lint"
             |docker run --rm -v jenkins_slave_home:/jenkins_slave_home/ --entrypoint="dockerlint" redcoolbeans/dockerlint -f /jenkins_slave_home/$JOB_NAME/Dockerfile
             |'''.stripMargin())
   }
@@ -137,9 +137,8 @@ staticCodeAnalysis.with{
   }
 }
 
-
 build.with{
-  description("This job build the Docker image")
+  description("This job builds the Docker image")
   parameters{
     stringParam("B",'',"Parent build number")
     stringParam("PARENT_BUILD","Get_Dockerfile","Parent build name")
@@ -162,6 +161,7 @@ build.with{
       }
     }
     shell('''set -x
+            |echo "Build the docker container image locally"
             |docker build -t '''.stripMargin() + 
 	     referenceAppGitRepo + ''' .'''.stripMargin())
   }
@@ -171,15 +171,15 @@ build.with{
         condition("UNSTABLE_OR_BETTER")
         parameters{
           predefinedProp("B",'${B}')
-          predefinedProp("PARENT_BUILD", '${PARENT_BUILD}')
+          predefinedProp("PARENT_BUILD", '${JOB_NAME}')
         }
       }
     }
   }
 }
 
-vunerabilityScan.with{
-  description("This will build a wrapper testing container FROM the image under test adding all testing dependencies (that we wouldn't want in production) then run the container to test it's self.")
+vulnerabilityScan.with{
+  description("This job tests the image against a database of known vulnerabilities using Clair, an open source static analysis tool https://github.com/coreos/clair.")
   parameters{
     stringParam("B",'',"Parent build number")
     stringParam("PARENT_BUILD","Get_Dockerfile","Parent build name")
@@ -196,16 +196,17 @@ vunerabilityScan.with{
   }
   label("docker")
   steps {
-    shell('''set +x
-            |echo This will build a wrapper testing container FROM the image under test adding all testing dependencies (that we wouldn't want in production) then run the container to test it's self.
-            |'''.stripMargin())
     copyArtifacts("Get_Dockerfile") {
         buildSelector {
           buildNumber('${B}')
       }
     }
     shell('''set +x
-            |echo TODO run kitchen
+            |echo "Use the docker.accenture.com/adop/analyze-local-images container to analyse the image"
+            |docker run --net=host --rm -v /tmp:/tmp -v /var/run/docker.sock:/var/run/docker.sock docker.accenture.com/adop/analyze-local-images:0.0.1 '''.stripMargin() + referenceAppGitRepo + ''' > ${WORKSPACE}/analyze-images-out.log
+            |if ! grep "^Success! No vulnerabilities were detected in your image$" ${WORKSPACE}/analyze-images-out.log; then
+            | exit 1
+            |fi
             |'''.stripMargin())
   }
   publishers{
@@ -214,7 +215,7 @@ vunerabilityScan.with{
         condition("UNSTABLE_OR_BETTER")
         parameters{
           predefinedProp("B",'${B}')
-          predefinedProp("PARENT_BUILD", '${PARENT_BUILD}')
+          predefinedProp("PARENT_BUILD", '${JOB_NAME}')
         }
       }
     }
@@ -239,10 +240,218 @@ imageTest.with{
   }
   label("docker")
   steps {
+    copyArtifacts("Get_Dockerfile") {
+        buildSelector {
+          buildNumber('${B}')
+      }
+    }
     shell('''set +x
             |echo TODO converge 
             |set -x'''.stripMargin())
   }
-
+  publishers{
+    archiveArtifacts("**/*")
+    downstreamParameterized{
+      trigger(projectFolderName + "/Container_Test"){
+        condition("UNSTABLE_OR_BETTER")
+        parameters{
+          predefinedProp("B",'${BUILD_NUMBER}')
+          predefinedProp("PARENT_BUILD",'${JOB_NAME}')
+        }
+      }
+    }
+  }
 }
 
+containerTest.with{
+  description("This job TODO")
+  parameters{
+    stringParam("B",'',"Parent build number")
+    stringParam("PARENT_BUILD","Get_Dockerfile","Parent build name")
+  }
+  wrappers {
+    preBuildCleanup()
+    injectPasswords()
+    maskPasswords()
+    sshAgent("adop-jenkins-master")
+  }
+  environmentVariables {
+      env('WORKSPACE_NAME',workspaceFolderName)
+      env('PROJECT_NAME',projectFolderName)
+  }
+  label("docker")
+  steps {
+    copyArtifacts("Get_Dockerfile") {
+        buildSelector {
+          buildNumber('${B}')
+      }
+    }
+    shell('''set +x
+            |echo TODO converge 
+            |set -x'''.stripMargin())
+  }
+  publishers{
+    archiveArtifacts("**/*")
+    downstreamParameterized{
+      trigger(projectFolderName + "/Publish"){
+        condition("UNSTABLE_OR_BETTER")
+        parameters{
+          predefinedProp("B",'${BUILD_NUMBER}')
+          predefinedProp("PARENT_BUILD",'${JOB_NAME}')
+        }
+      }
+    }
+  }
+}
+
+publish.with{
+  description("This job TODO")
+  parameters{
+    stringParam("B",'',"Parent build number")
+    stringParam("PARENT_BUILD","Get_Dockerfile","Parent build name")
+  }
+  wrappers {
+    preBuildCleanup()
+    injectPasswords()
+    maskPasswords()
+    sshAgent("adop-jenkins-master")
+  }
+  environmentVariables {
+      env('WORKSPACE_NAME',workspaceFolderName)
+      env('PROJECT_NAME',projectFolderName)
+  }
+  label("docker")
+  steps {
+    copyArtifacts("Get_Dockerfile") {
+        buildSelector {
+          buildNumber('${B}')
+      }
+    }
+    shell('''set +x
+            |echo TODO converge 
+            |set -x'''.stripMargin())
+  }
+  publishers{
+    archiveArtifacts("**/*")
+    downstreamParameterized{
+      trigger(projectFolderName + "/Integration_Test_With_Testing_Image"){
+        condition("UNSTABLE_OR_BETTER")
+        parameters{
+          predefinedProp("B",'${BUILD_NUMBER}')
+          predefinedProp("PARENT_BUILD",'${JOB_NAME}')
+        }
+      }
+    }
+  }
+}
+
+integrationTestTestingImage.with{
+  description("This job TODO")
+  parameters{
+    stringParam("B",'',"Parent build number")
+    stringParam("PARENT_BUILD","Get_Dockerfile","Parent build name")
+  }
+  wrappers {
+    preBuildCleanup()
+    injectPasswords()
+    maskPasswords()
+    sshAgent("adop-jenkins-master")
+  }
+  environmentVariables {
+      env('WORKSPACE_NAME',workspaceFolderName)
+      env('PROJECT_NAME',projectFolderName)
+  }
+  label("docker")
+  steps {
+    copyArtifacts("Get_Dockerfile") {
+        buildSelector {
+          buildNumber('${B}')
+      }
+    }
+    shell('''set +x
+            |echo TODO converge 
+            |set -x'''.stripMargin())
+  }
+  publishers{
+    archiveArtifacts("**/*")
+    downstreamParameterized{
+      trigger(projectFolderName + "/Integration_Test_Image"){
+        condition("UNSTABLE_OR_BETTER")
+        parameters{
+          predefinedProp("B",'${BUILD_NUMBER}')
+          predefinedProp("PARENT_BUILD",'${JOB_NAME}')
+        }
+      }
+    }
+  }
+}
+
+integrationTestImage.with{
+  description("This job TODO")
+  parameters{
+    stringParam("B",'',"Parent build number")
+    stringParam("PARENT_BUILD","Get_Dockerfile","Parent build name")
+  }
+  wrappers {
+    preBuildCleanup()
+    injectPasswords()
+    maskPasswords()
+    sshAgent("adop-jenkins-master")
+  }
+  environmentVariables {
+      env('WORKSPACE_NAME',workspaceFolderName)
+      env('PROJECT_NAME',projectFolderName)
+  }
+  label("docker")
+  steps {
+    copyArtifacts("Get_Dockerfile") {
+        buildSelector {
+          buildNumber('${B}')
+      }
+    }
+    shell('''set +x
+            |echo TODO converge 
+            |set -x'''.stripMargin())
+  }
+  publishers{
+    archiveArtifacts("**/*")
+    downstreamParameterized{
+      trigger(projectFolderName + "/Tag_and_Release"){
+        condition("UNSTABLE_OR_BETTER")
+        parameters{
+          predefinedProp("B",'${BUILD_NUMBER}')
+          predefinedProp("PARENT_BUILD",'${JOB_NAME}')
+        }
+      }
+    }
+  }
+}
+
+tagAndRelease.with{
+  description("This job TODO")
+  parameters{
+    stringParam("B",'',"Parent build number")
+    stringParam("PARENT_BUILD","Get_Dockerfile","Parent build name")
+  }
+  wrappers {
+    preBuildCleanup()
+    injectPasswords()
+    maskPasswords()
+    sshAgent("adop-jenkins-master")
+  }
+  environmentVariables {
+      env('WORKSPACE_NAME',workspaceFolderName)
+      env('PROJECT_NAME',projectFolderName)
+  }
+  label("docker")
+  steps {
+    copyArtifacts("Get_Dockerfile") {
+        buildSelector {
+          buildNumber('${B}')
+      }
+    }
+    shell('''set +x
+            |echo TODO converge 
+            |set -x'''.stripMargin())
+  }
+}
