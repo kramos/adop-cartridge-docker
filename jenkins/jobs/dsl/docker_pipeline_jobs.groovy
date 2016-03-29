@@ -203,7 +203,7 @@ vulnerabilityScan.with{
     }
     shell('''set +x
             |echo "Use the docker.accenture.com/adop/analyze-local-images container to analyse the image"
-            |docker run --net=host --rm -v /tmp:/tmp -v /var/run/docker.sock:/var/run/docker.sock docker.accenture.com/adop/analyze-local-images:0.0.2 '''.stripMargin() + referenceAppGitRepo + ''' > ${WORKSPACE}/analyze-images-out.log
+            |docker run --net=host --rm -v /tmp:/tmp -v /var/run/docker.sock:/var/run/docker.sock docker.accenture.com/adop/analyze-local-images:0.0.1 '''.stripMargin() + referenceAppGitRepo + ''' > ${WORKSPACE}/analyze-images-out.log
             |#if ! grep "^Success! No vulnerabilities were detected in your image$" ${WORKSPACE}/analyze-images-out.log; then
             |# exit 1
             |#fi
@@ -258,7 +258,7 @@ imageTest.with{
             |echo "Use the docker.accenture.com/adop/image-inspector container to inspect the image"
             |export host_workspace=$(echo ${WORKSPACE} | sed 's#/workspace#/var/lib/docker/volumes/jenkins_slave_home/_data#')
             |export host_dir=$(echo "${host_workspace}/imageTest/config/")
-            |docker run --net=host --rm -v ${host_dir}:/tmp -v /var/run/docker.sock:/var/run/docker.sock docker.accenture.com/adop/image-inspector:0.0.1 -i '''.stripMargin() + referenceAppGitRepo + ''' -f /tmp/'''.stripMargin() + referenceAppGitRepo + '''.cfg > ${WORKSPACE}/image-inspector.log
+            |docker run --net=host --rm -v ${host_dir}:/tmp -v /var/run/docker.sock:/var/run/docker.sock docker.accenture.com/adop/image-inspector:0.0.2 -i '''.stripMargin() + referenceAppGitRepo + ''' -f /tmp/'''.stripMargin() + referenceAppGitRepo + '''.cfg > ${WORKSPACE}/image-inspector.log
             |#if grep "ERROR" ${WORKSPACE}/image-inspector.log; then
             |# exit 1
             |#fi
