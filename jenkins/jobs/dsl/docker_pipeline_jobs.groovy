@@ -6,8 +6,7 @@ def projectFolderName = "${PROJECT_NAME}"
 def referenceAppGitRepo = "adop-jenkins"
 def referenceAppGitUrl = "ssh://jenkins@gerrit:29418/${PROJECT_NAME}/" + referenceAppGitRepo
 def dockerUtilsRepo = "adop-cartridge-docker-scripts"
-//def dockerUtilsGitUrl = "ssh://jenkins@gerrit:29418/${PROJECT_NAME}/" + dockerUtilsRepo 
-def dockerUtilsGitUrl = "ssh://jenkins@gerrit:29418/" + dockerUtilsRepo 
+def dockerUtilsGitUrl = "ssh://jenkins@gerrit:29418/${PROJECT_NAME}/" + dockerUtilsRepo 
 
 // Jobs
 def getDockerfile = freeStyleJob(projectFolderName + "/Get_Dockerfile")
@@ -257,9 +256,8 @@ imageTest.with{
     }
     shell('''set +x
             |echo "Use the docker.accenture.com/adop/image-inspector container to inspect the image"
-            |export host_workspace=$(echo ${WORKSPACE} | sed 's#/workspace#/var/lib/docker/volumes/jenkins_slave_home/_data#')
-            |export host_dir=$(echo "${host_workspace}/imageTest/config/")
-            |docker run --net=host --rm -v ${host_dir}:/tmp -v /var/run/docker.sock:/var/run/docker.sock docker.accenture.com/adop/image-inspector:0.0.1 -i '''.stripMargin() + referenceAppGitRepo + ''' -f /tmp/'''.stripMargin() + referenceAppGitRepo + '''.cfg > ${WORKSPACE}/image-inspector.log
+            |export docker_machine_workspace=$(echo ${WORKSPACE} | sed 's#/workspace#/var/lib/docker/volumes/jenkins_slave_home/_data/imageTest/config/#')
+            |docker run --net=host --rm -v ${docker_machine_workspace}:/tmp -v /var/run/docker.sock:/var/run/docker.sock docker.accenture.com/adop/image-inspector:0.0.1 -i '''.stripMargin() + referenceAppGitRepo + ''' -f /tmp/'''.stripMargin() + referenceAppGitRepo + '''.cfg > ${WORKSPACE}/image-inspector.log
             |#if grep "ERROR" ${WORKSPACE}/image-inspector.log; then
             |# exit 1
             |#fi
