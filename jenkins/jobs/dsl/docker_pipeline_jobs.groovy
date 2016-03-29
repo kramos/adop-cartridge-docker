@@ -138,7 +138,7 @@ staticCodeAnalysis.with{
 }
 
 build.with{
-  description("This job builds the Docker image")
+  description("This job builds the Docker image.")
   parameters{
     stringParam("B",'',"Parent build number")
     stringParam("PARENT_BUILD","Get_Dockerfile","Parent build name")
@@ -223,7 +223,7 @@ vulnerabilityScan.with{
 }
 
 imageTest.with{
-  description("This job TODO")
+  description("This job uses a python script to analyse the output from docker inspect against a configuration file that details required parameters. It also looks for any unexpected additions to the new image being tested.")
   parameters{
     stringParam("B",'',"Parent build number")
     stringParam("PARENT_BUILD","Get_Dockerfile","Parent build name")
