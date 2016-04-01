@@ -120,7 +120,10 @@ staticCodeAnalysis.with{
     }
     shell('''set -x
             |echo "Mount the Dockerfile into a container that will run Dockerlint https://github.com/projectatomic/dockerfile_lint"
-            |docker run --rm -v jenkins_slave_home:/jenkins_slave_home/ --entrypoint="dockerlint" redcoolbeans/dockerlint -f /jenkins_slave_home/$JOB_NAME/Dockerfile
+            |docker run --rm -v jenkins_slave_home:/jenkins_slave_home/ --entrypoint="dockerlint" redcoolbeans/dockerlint -f /jenkins_slave_home/$JOB_NAME/Dockerfile > ${WORKSPACE}/staticCodeAnalysis.out
+            |#if grep "SOMETHING HERE" ${WORKSPACE}/staticCodeAnalysis.out; then
+            |# exit 1
+            |#fi
             |set +x'''.stripMargin())
   }
   publishers{
@@ -203,8 +206,8 @@ vulnerabilityScan.with{
     }
     shell('''set -x
             |echo "Use the darrenajackson/analyze-local-images container to analyse the image"
-            |docker run --net=host --rm -v /tmp:/tmp -v /var/run/docker.sock:/var/run/docker.sock darrenajackson/analyze-local-images '''.stripMargin() + referenceAppGitRepo + ''' > ${WORKSPACE}/analyze-images-out.log
-            |#if ! grep "^Success! No vulnerabilities were detected in your image$" ${WORKSPACE}/analyze-images-out.log; then
+            |docker run --net=host --rm -v /tmp:/tmp -v /var/run/docker.sock:/var/run/docker.sock darrenajackson/analyze-local-images '''.stripMargin() + referenceAppGitRepo + ''' > ${WORKSPACE}/vulnerabilityScan.out
+            |#if ! grep "^Success! No vulnerabilities were detected in your image$" ${WORKSPACE}/vulnerabilityScan.out; then
             |# exit 1
             |#fi
             |set +x'''.stripMargin())
@@ -259,8 +262,8 @@ imageTest.with{
             |export TESTS_PATH="adop-jenkins/tests/image-test"
             |export TEST_DIR="/tmp"
             |export docker_workspace_dir=$(echo ${WORKSPACE} | sed 's#/workspace#/var/lib/docker/volumes/jenkins_slave_home/_data#')
-            |docker run --net=host --rm -v ${docker_workspace_dir}/${TESTS_PATH}/:${TEST_DIR} -v /var/run/docker.sock:/var/run/docker.sock darrenajackson/image-inspector -i '''.stripMargin() + referenceAppGitRepo + ''' -f ${TEST_DIR}/'''.stripMargin() + referenceAppGitRepo + '''.cfg > ${WORKSPACE}/image-inspector.log
-            |#if grep "ERROR" ${WORKSPACE}/image-inspector.log; then
+            |docker run --net=host --rm -v ${docker_workspace_dir}/${TESTS_PATH}/:${TEST_DIR} -v /var/run/docker.sock:/var/run/docker.sock darrenajackson/image-inspector -i '''.stripMargin() + referenceAppGitRepo + ''' -f ${TEST_DIR}/'''.stripMargin() + referenceAppGitRepo + '''.cfg > ${WORKSPACE}/imageTest.out
+            |#if grep "ERROR" ${WORKSPACE}/imageTest.out; then
             |# exit 1
             |#fi
             |set +x'''.stripMargin())
@@ -324,9 +327,9 @@ containerTest.with{
             |docker build -t '''.stripMargin() + referenceAppGitRepo + '''-${IMG_TAG}:${IMG_TAG} ${WORKSPACE}
             |docker run -d --name '''.stripMargin() + referenceAppGitRepo + '''-${IMG_TAG} -v ${docker_workspace_dir}/${TESTS_PATH}/:${TEST_DIR} '''.stripMargin() + referenceAppGitRepo + '''-${IMG_TAG}:${IMG_TAG}
             |sleep 60
-            |docker exec '''.stripMargin() + referenceAppGitRepo + '''-${IMG_TAG} ${TEST_DIR}/container_tests.sh > ${WORKSPACE}/container-test.log
+            |docker exec '''.stripMargin() + referenceAppGitRepo + '''-${IMG_TAG} ${TEST_DIR}/container_tests.sh > ${WORKSPACE}/containerTest.out
             |docker stop '''.stripMargin() + referenceAppGitRepo + '''-${IMG_TAG} && docker rm -v '''.stripMargin() + referenceAppGitRepo + '''-${IMG_TAG} && docker rmi '''.stripMargin() + referenceAppGitRepo + '''-${IMG_TAG}:${IMG_TAG}
-            |#if grep "^-" ${WORKSPACE}/container-test.log; then
+            |#if grep "^-" ${WORKSPACE}/containerTest.out; then
             |# exit 1
             |#fi
             |set -x'''.stripMargin())
