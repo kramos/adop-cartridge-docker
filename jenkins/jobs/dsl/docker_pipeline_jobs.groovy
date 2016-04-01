@@ -256,8 +256,10 @@ imageTest.with{
     }
     shell('''set -x
             |echo "Use the docker.accenture.com/adop/image-inspector container to inspect the image"
+            |export TESTS_PATH="adop-jenkins/tests/image-test"
+            |export TEST_DIR="/tmp"
             |export docker_workspace_dir=$(echo ${WORKSPACE} | sed 's#/workspace#/var/lib/docker/volumes/jenkins_slave_home/_data#')
-            |docker run --net=host --rm -v ${docker_workspace_dir}/adop-jenkins/tests/image-test/:/tmp -v /var/run/docker.sock:/var/run/docker.sock docker.accenture.com/adop/image-inspector:0.0.2 -i '''.stripMargin() + referenceAppGitRepo + ''' -f /tmp/'''.stripMargin() + referenceAppGitRepo + '''.cfg > ${WORKSPACE}/image-inspector.log
+            |docker run --net=host --rm -v ${docker_workspace_dir}/${TESTS_PATH}/:${TEST_DIR} -v /var/run/docker.sock:/var/run/docker.sock docker.accenture.com/adop/image-inspector:0.0.2 -i '''.stripMargin() + referenceAppGitRepo + ''' -f ${TEST_DIR}/'''.stripMargin() + referenceAppGitRepo + '''.cfg > ${WORKSPACE}/image-inspector.log
             |#if grep "ERROR" ${WORKSPACE}/image-inspector.log; then
             |# exit 1
             |#fi
@@ -278,7 +280,7 @@ imageTest.with{
 }
 
 containerTest.with{
-  description("This job create a new testing image from the image being tested that also contains all the tools necessary for internal testing of the image.")
+  description("This job creates a new testing image from the image being tested that also contains all the tools necessary for internal testing of the image.")
   parameters{
     stringParam("B",'',"Parent build number")
     stringParam("PARENT_BUILD","Get_Dockerfile","Parent build name")
@@ -310,15 +312,20 @@ containerTest.with{
       }
     }
     shell('''set -x
+            |echo "Build a new test image installing required applications, run test suite and destroy the new image and container at the end of the tests"
+            |export TESTS_PATH="adop-jenkins/tests/container-test"
+            |export CT_PATH="containerTest/test-image"
+            |export IMG_TAG="test"
+            |export TEST_DIR="/var/tmp"
             |export docker_workspace_dir=$(echo ${WORKSPACE} | sed 's#/workspace#/var/lib/docker/volumes/jenkins_slave_home/_data#')
-            |source ${WORKSPACE}/adop-jenkins/tests/container-test/dockerfile_envs.sh
-            |sed -e 's#<@FROM-IMAGE@>#'''.stripMargin() + referenceAppGitRepo + '''#' -e 's#<@PACK-LIST@>#${PACK_LIST}#' ${WORKSPACE}/containerTest/test-image/Dockerfile.template > ${WORKSPACE}/Dockerfile
-            |cat ${WORKSPACE}/adop-jenkins/tests/container-test/envs.cfg >> ${WORKSPACE}/Dockerfile
-            |docker build -t '''.stripMargin() + referenceAppGitRepo + '''-test:99 ${WORKSPACE}
-            |docker run -d --name '''.stripMargin() + referenceAppGitRepo + '''-test99 -v ${docker_workspace_dir}/adop-jenkins/tests/container-test/:/var/tmp '''.stripMargin() + referenceAppGitRepo + '''-test:99
+            |source ${WORKSPACE}/${TESTS_PATH}/dockerfile_envs.sh
+            |sed -e 's#<@FROM-IMAGE@>#'''.stripMargin() + referenceAppGitRepo + '''#' -e "s#<@PACK-LIST@>#${PACK_LIST}#" ${WORKSPACE}/${CT_PATH}/Dockerfile.template > ${WORKSPACE}/Dockerfile
+            |cat ${WORKSPACE}/${TESTS_PATH}/envs.cfg >> ${WORKSPACE}/Dockerfile
+            |docker build -t '''.stripMargin() + referenceAppGitRepo + '''-${IMG_TAG}:${IMG_TAG} ${WORKSPACE}
+            |docker run -d --name '''.stripMargin() + referenceAppGitRepo + '''-${IMG_TAG} -v ${docker_workspace_dir}/${TESTS_PATH}/:${TEST_DIR} '''.stripMargin() + referenceAppGitRepo + '''-${IMG_TAG}:${IMG_TAG}
             |sleep 60
-            |docker exec '''.stripMargin() + referenceAppGitRepo + '''-test99 /var/tmp/container_tests.sh > ${WORKSPACE}/container-test.log
-            |docker stop '''.stripMargin() + referenceAppGitRepo + '''-test99 && docker rm -v '''.stripMargin() + referenceAppGitRepo + '''-test99 && docker rmi '''.stripMargin() + referenceAppGitRepo + '''-test:99
+            |docker exec '''.stripMargin() + referenceAppGitRepo + '''-${IMG_TAG} ${TEST_DIR}/container_tests.sh > ${WORKSPACE}/container-test.log
+            |docker stop '''.stripMargin() + referenceAppGitRepo + '''-${IMG_TAG} && docker rm -v '''.stripMargin() + referenceAppGitRepo + '''-${IMG_TAG} && docker rmi '''.stripMargin() + referenceAppGitRepo + '''-${IMG_TAG}:${IMG_TAG}
             |#if grep "^-" ${WORKSPACE}/container-test.log; then
             |# exit 1
             |#fi
