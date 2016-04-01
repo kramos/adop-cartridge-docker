@@ -312,7 +312,7 @@ containerTest.with{
     shell('''set -x
             |export docker_workspace_dir=$(echo ${WORKSPACE} | sed 's#/workspace#/var/lib/docker/volumes/jenkins_slave_home/_data#')
             |source ${WORKSPACE}/adop-jenkins/tests/container-test/dockerfile_envs.sh
-            |sed -e 's#\<\@FROM\-IMAGE\@\>#'''.stripMargin() + referenceAppGitRepo + '''#' -e 's#\<\@PACK\-LIST\@\>#${PACK_LIST}#' ${WORKSPACE}/containerTest/test-image/Dockerfile.template > ${WORKSPACE}/Dockerfile
+            |sed -e 's#<@FROM-IMAGE@>#'''.stripMargin() + referenceAppGitRepo + '''#' -e 's#<@PACK-LIST@>#${PACK_LIST}#' ${WORKSPACE}/containerTest/test-image/Dockerfile.template > ${WORKSPACE}/Dockerfile
             |cat ${WORKSPACE}/adop-jenkins/tests/container-test/envs.cfg >> ${WORKSPACE}/Dockerfile
             |docker build -t '''.stripMargin() + referenceAppGitRepo + '''-test:99 ${WORKSPACE}
             |docker run -d --name '''.stripMargin() + referenceAppGitRepo + '''-test99 -v ${docker_workspace_dir}/adop-jenkins/tests/container-test/:/var/tmp '''.stripMargin() + referenceAppGitRepo + '''-test:99
