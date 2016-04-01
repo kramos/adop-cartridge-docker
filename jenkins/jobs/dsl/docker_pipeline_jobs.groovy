@@ -121,7 +121,7 @@ staticCodeAnalysis.with{
     shell('''set -x
             |echo "Mount the Dockerfile into a container that will run Dockerlint https://github.com/projectatomic/dockerfile_lint"
             |docker run --rm -v jenkins_slave_home:/jenkins_slave_home/ --entrypoint="dockerlint" redcoolbeans/dockerlint -f /jenkins_slave_home/$JOB_NAME/Dockerfile > ${WORKSPACE}/staticCodeAnalysis.out
-            |#if grep "SOMETHING HERE" ${WORKSPACE}/staticCodeAnalysis.out; then
+            |#if ! grep "Dockerfile is OK" ${WORKSPACE}/staticCodeAnalysis.out; then
             |# exit 1
             |#fi
             |set +x'''.stripMargin())
