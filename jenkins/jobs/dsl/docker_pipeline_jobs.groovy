@@ -79,7 +79,7 @@ getDockerfile.with{
   steps {
     shell('''set -xe
             |echo "Pull the Dockerfile out of Git ready for us to test and if successful release via the pipeline"
-            |'''.stripMargin())
+            |set +xe'''.stripMargin())
   }
   publishers{
     archiveArtifacts("**/*")
@@ -119,9 +119,9 @@ staticCodeAnalysis.with{
       }
     }
     shell('''set -x
-            |echo "Mount the Dockerfile into a container that will run Docker Lint https://github.com/projectatomic/dockerfile_lint"
+            |echo "Mount the Dockerfile into a container that will run Dockerlint https://github.com/projectatomic/dockerfile_lint"
             |docker run --rm -v jenkins_slave_home:/jenkins_slave_home/ --entrypoint="dockerlint" redcoolbeans/dockerlint -f /jenkins_slave_home/$JOB_NAME/Dockerfile
-            |'''.stripMargin())
+            |set +x'''.stripMargin())
   }
   publishers{
     archiveArtifacts("**/*")
@@ -162,8 +162,8 @@ build.with{
     }
     shell('''set -x
             |echo "Build the docker container image locally"
-            |docker build -t '''.stripMargin() + 
-	     referenceAppGitRepo + ''' .'''.stripMargin())
+            |docker build -t '''.stripMargin() + referenceAppGitRepo + ''' .
+            |set +x'''.stripMargin())
   }
   publishers{
     downstreamParameterized{
@@ -201,13 +201,13 @@ vulnerabilityScan.with{
           buildNumber('${B}')
       }
     }
-    shell('''set +x
+    shell('''set -x
             |echo "Use the docker.accenture.com/adop/analyze-local-images container to analyse the image"
             |docker run --net=host --rm -v /tmp:/tmp -v /var/run/docker.sock:/var/run/docker.sock docker.accenture.com/adop/analyze-local-images:0.0.1 '''.stripMargin() + referenceAppGitRepo + ''' > ${WORKSPACE}/analyze-images-out.log
             |#if ! grep "^Success! No vulnerabilities were detected in your image$" ${WORKSPACE}/analyze-images-out.log; then
             |# exit 1
             |#fi
-            |'''.stripMargin())
+            |set +x'''.stripMargin())
   }
   publishers{
     downstreamParameterized{
@@ -254,15 +254,14 @@ imageTest.with{
           buildNumber('${B}')
       }
     }
-    shell('''set +x
+    shell('''set -x
             |echo "Use the docker.accenture.com/adop/image-inspector container to inspect the image"
-            |export host_workspace=$(echo ${WORKSPACE} | sed 's#/workspace#/var/lib/docker/volumes/jenkins_slave_home/_data#')
-            |export host_dir=$(echo "${host_workspace}/adop-jenkins/tests/image-test/")
-            |docker run --net=host --rm -v ${host_dir}:/tmp -v /var/run/docker.sock:/var/run/docker.sock docker.accenture.com/adop/image-inspector:0.0.2 -i '''.stripMargin() + referenceAppGitRepo + ''' -f /tmp/'''.stripMargin() + referenceAppGitRepo + '''.cfg > ${WORKSPACE}/image-inspector.log
+            |export docker_workspace_dir=$(echo ${WORKSPACE} | sed 's#/workspace#/var/lib/docker/volumes/jenkins_slave_home/_data#')
+            |docker run --net=host --rm -v ${docker_workspace_dir}/adop-jenkins/tests/image-test/:/tmp -v /var/run/docker.sock:/var/run/docker.sock docker.accenture.com/adop/image-inspector:0.0.2 -i '''.stripMargin() + referenceAppGitRepo + ''' -f /tmp/'''.stripMargin() + referenceAppGitRepo + '''.cfg > ${WORKSPACE}/image-inspector.log
             |#if grep "ERROR" ${WORKSPACE}/image-inspector.log; then
             |# exit 1
             |#fi
-            |'''.stripMargin())
+            |set +x'''.stripMargin())
   }
   publishers{
     archiveArtifacts("**/*")
@@ -279,7 +278,7 @@ imageTest.with{
 }
 
 containerTest.with{
-  description("This job TODO")
+  description("This job create a new testing image from the image being tested that also contains all the tools necessary for internal testing of the image.")
   parameters{
     stringParam("B",'',"Parent build number")
     stringParam("PARENT_BUILD","Get_Dockerfile","Parent build name")
@@ -289,6 +288,15 @@ containerTest.with{
     injectPasswords()
     maskPasswords()
     sshAgent("adop-jenkins-master")
+  }
+  scm{
+    git{
+      remote{
+        url(dockerUtilsGitUrl)
+        credentials("adop-jenkins-master")
+      }
+      branch("*/master")
+    }
   }
   environmentVariables {
       env('WORKSPACE_NAME',workspaceFolderName)
@@ -301,8 +309,19 @@ containerTest.with{
           buildNumber('${B}')
       }
     }
-    shell('''set +x
-            |echo TODO converge 
+    shell('''set -x
+            |export docker_workspace_dir=$(echo ${WORKSPACE} | sed 's#/workspace#/var/lib/docker/volumes/jenkins_slave_home/_data#')
+            |source ${WORKSPACE}/adop-jenkins/tests/container-test/dockerfile_envs.sh
+            |sed -e s/\<\@FROM\-IMAGE\@\>/'''.stripMargin() + referenceAppGitRepo + '''/ -e s/\<\@PACK\-LIST\@\>/${PACK_LIST}/ ${WORKSPACE}/containerTest/test-image/Dockerfile.template > ${WORKSPACE}/Dockerfile
+            |cat ${WORKSPACE}/adop-jenkins/tests/container-test/envs.cfg >> ${WORKSPACE}/Dockerfile
+            |docker build -t '''.stripMargin() + referenceAppGitRepo + '''-test:99 ${WORKSPACE}
+            |docker run -d --name '''.stripMargin() + referenceAppGitRepo + '''-test99 -v ${docker_workspace_dir}/adop-jenkins/tests/container-test/:/var/tmp '''.stripMargin() + referenceAppGitRepo + '''-test:99
+            |sleep 60
+            |docker exec '''.stripMargin() + referenceAppGitRepo + '''-test99 /var/tmp/container_tests.sh > ${WORKSPACE}/container-test.log
+            |docker stop '''.stripMargin() + referenceAppGitRepo + '''-test99 && docker rm -v '''.stripMargin() + referenceAppGitRepo + '''-test99 && docker rmi '''.stripMargin() + referenceAppGitRepo + '''-test:99
+            |#if grep "^-" ${WORKSPACE}/container-test.log; then
+            |# exit 1
+            |#fi
             |set -x'''.stripMargin())
   }
   publishers{
@@ -342,9 +361,9 @@ publish.with{
           buildNumber('${B}')
       }
     }
-    shell('''set +x
+    shell('''set -x
             |echo TODO converge 
-            |set -x'''.stripMargin())
+            |set +x'''.stripMargin())
   }
   publishers{
     archiveArtifacts("**/*")
@@ -383,9 +402,9 @@ integrationTestTestingImage.with{
           buildNumber('${B}')
       }
     }
-    shell('''set +x
+    shell('''set -x
             |echo TODO converge 
-            |set -x'''.stripMargin())
+            |set +x'''.stripMargin())
   }
   publishers{
     archiveArtifacts("**/*")
@@ -424,9 +443,9 @@ integrationTestImage.with{
           buildNumber('${B}')
       }
     }
-    shell('''set +x
+    shell('''set -x
             |echo TODO converge 
-            |set -x'''.stripMargin())
+            |set +x'''.stripMargin())
   }
   publishers{
     archiveArtifacts("**/*")
@@ -465,8 +484,8 @@ tagAndRelease.with{
           buildNumber('${B}')
       }
     }
-    shell('''set +x
+    shell('''set -x
             |echo TODO converge 
-            |set -x'''.stripMargin())
+            |set +x'''.stripMargin())
   }
 }
