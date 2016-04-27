@@ -68,8 +68,8 @@ createClairInstance.with{
   label("docker")
   steps {
     shell('''set -xe
-            |cd adop-cartridge-docker-scripts/vulnerabilityScan/coreos_clairdd
-            |export CUSTOM_NETWORK_NAME=adopnetwork
+            |cd vulnerabilityScan/coreos_clair
+            |export CUSTOM_NETWORK_NAME=local_network
             |docker-compose -f ./docker-compose.yml up -d
             |'''.stripMargin())
   }
@@ -108,7 +108,7 @@ removeClairInstance.with{
     }
     shell('''set -xe
             |cd adop-cartridge-docker-scripts/vulnerabilityScan/coreos_clairdd
-            |export CUSTOM_NETWORK_NAME=adopnetwork
+            |export CUSTOM_NETWORK_NAME=
             |docker-compose -f ./docker-compose.yml rm -f
             |'''.stripMargin())
   }
