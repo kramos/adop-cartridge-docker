@@ -75,14 +75,11 @@ createClairInstance.with{
   }
   publishers{
     archiveArtifacts("**/*")
-    downstreamParameterized{
-      trigger(projectFolderName + "/Remove_Clair_Instance"){
-        condition("TODO")
-        parameters{
-          predefinedProp("B",'${BUILD_NUMBER}')
-          predefinedProp("PARENT_BUILD",'${JOB_NAME}')
+        buildPipelineTrigger("${PROJECT_NAME}/Remove_Clair_Instance") {
+            parameters {
+                currentBuild()
+            }
         }
-      }
     }
   }
 }
