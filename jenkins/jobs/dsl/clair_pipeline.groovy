@@ -75,11 +75,10 @@ createClairInstance.with{
   }
   publishers{
     archiveArtifacts("**/*")
-        buildPipelineTrigger("${PROJECT_NAME}/Remove_Clair_Instance") {
+    buildPipelineTrigger("${PROJECT_NAME}/Remove_Clair_Instance") {
             parameters {
                 currentBuild()
             }
-        }
     }
   }
 }
